@@ -16,6 +16,7 @@ app.use(cors());
 require('dotenv').config();
 const PORT = process.env.PORT;
 const PARKSkey = process.env.PARKS_API_KEY; 
+
 const movieKey = process.env.MOVIE_API_KEY; 
 const yelpKey = process.env.YELP_API_KEY;
 
@@ -391,5 +392,269 @@ client.connect().then(() => {
 
 
 
+// const client = new pg.Client(process.env.DATABASE_URL);
+const client = new pg.Client({ connectionString: process.env.DATABASE_URL,   ssl: { rejectUnauthorized: false } });
 
 
+
+// routes - endpoints
+app.get('/location', handelLocation);
+app.get('/weather', handelWeather);
+app.get('/parks', handelparks);
+// always let the star location be at the end 
+app.get('*', handel500);
+
+function handel500(req, res) {
+    res.status(500).send({ status: 500, responseText: "Sorry, something went wrong" });
+}
+
+
+
+
+// handler  data for location functions
+function handelLocation(req, res) {
+    let searchQuery = req.query.city;
+    // console.log(req.query);
+    // let locationObject =
+    getLocationData(searchQuery, res);
+    // res.status(200).send(locationObject); 
+
+}
+
+
+// weather handler function 
+function handelWeather(req, res) {
+
+
+    let searchQuery = req.query.city;
+    let lat = req.query.latitude;
+    let lon = req.query.longitude;
+    getWeatherData(searchQuery, lat, lon, res);
+    // res.status(200).send(weatherObject);
+}
+
+function checkLocation(searchQuery){
+    let check = `select * from locations where city_name = $1`;
+    let s_value = [searchQuery];
+    let selectedData = [];
+     client.query(check, s_value).then(data => {
+        console.log('data returned back from db ', data.rows.length);
+        selectedData = data.rows;
+    });
+    return selectedData;
+}
+
+// handle data for functions
+function getLocationData(searchQuery, res) {
+    let checkExist =  checkLocation(searchQuery);
+    if(checkExist.length !== 0 ){
+        console.log("in if statment "+checkExist +"  "+ searchQuery);
+        let responseObject = new cityLocation(checkExist[0].city_name, checkExist[0].display_name, checkExist[0].latitude, checkExist[0].longitude);
+        res.status(200).send(responseObject);
+       
+    }
+    else { 
+        const query = {
+        key: process.env.GEOCODE_API_KEY,
+        q: searchQuery,
+        limit: 1,
+
+        format: 'json'
+    };
+
+    let url = 'https://us1.locationiq.com/v1/search.php';
+    superagent.get(url).query(query).then(data => {
+        try {
+
+
+            let longitude = data.body[0].lon;
+            let latitude = data.body[0].lat;
+            let displayName = data.body[0].display_name;
+            // create data object
+
+
+            // let citiyDb = `INSERT INTO locations(city_name,latitude,longitude) VALUES ($1,$2,$3) RETURNING *`; 
+            // let safeValues = [city, longitude,latitude];
+            // client.query(citiyDb, safeValues).then(data =>{
+            //     console.log('data returned back from db ',data);
+            // }); 
+
+            let cityDB = `insert into locations(city_name, display_name, latitude, longitude) values ($1,$2,$3,$4)returning *`;
+            let value = [searchQuery, displayName, latitude, longitude];
+            client.query(cityDB, value).then(data => {
+                console.log('data returned back from db ', data);
+            });
+
+
+            let responseObject = new cityLocation(searchQuery, displayName, latitude, longitude);
+            res.status(200).send(responseObject);
+
+        }
+
+        catch (error) {
+            res.status(500).send(error);
+        }
+
+    }).catch(error => {
+        res.status(500).send('there was an error getting the server' + error);
+
+    });
+        
+    }
+   
+
+}
+
+
+
+
+
+
+
+
+
+function getWeatherData(searchQuery, lat, lon, res) {
+    const query2 = {
+        key: process.env.WEATHER_API_KEY,
+        lat: lat,
+        lon: lon,
+        city: searchQuery,
+        format: 'json',
+        days: 8
+    };
+
+    let url2 = 'http://api.weatherbit.io/v2.0/forecast/daily';
+    superagent.get(url2).query(query2).then(data => {
+        try {
+            let weatherObj = JSON.parse(data.text);
+
+            let newArray = [];
+
+            for (let index = 0; index < weatherObj.data.length; index++) {
+                let forecast = weatherObj.data[index].weather.description;
+                let t = weatherObj.data[index].datetime;
+
+                t = t.replace("-", "/");
+                var date = new Date(t);
+                let dateStr = date.toString();
+                var newDate = dateStr.slice(" ", 16);
+                let newObj = new WeatherData(forecast, newDate);
+                newArray.push(newObj);
+            }
+
+            // console.log(data.text);
+            res.status(200).send(newArray);
+        } catch (error) {
+            res.status(500).send(error);
+        }
+    }).catch(error => {
+        res.status(500).send('there was an error getting the server' + error);
+    });
+
+}
+
+
+ function handelparks(req, res){
+     let searchQuery = req.query.searchQuery; 
+
+    getParks(searchQuery, res); 
+
+
+}
+
+function getParks(searchQuery, res){
+    const query3 = {
+        api_key: process.env.PARKS_API_KEY,
+       
+        q: searchQuery
+      
+    };
+    let url = `https://developer.nps.gov/api/v1/parks`;
+    superagent.get(url).query(query3).then(data=>{
+        try{
+            let newData = data.body.data;
+            let parksArray = [];
+            for(let i =0; i<newData.length;i++){
+                let name = newData[i].fullName;
+                let desc = newData[i].description;
+                let url = newData[i].url;
+                let fee = newData[i].entranceFees[0].cost;
+                let address = `" ${newData[i].addresses[0].line1} " "${newData[i].addresses[0].city}" " ${newData[i].addresses[0].stateCode}" "${newData[i].addresses[0].postalCode}" `;
+                let parksObject = new CityParks(name,desc,url,fee,address);
+                parksArray.push(parksObject);
+            }
+            res.status(200).send(parksArray);
+        }catch(error){
+            res.status(500).send("error in fetch data "+ error);
+        }
+    }).catch(error=>{
+        res.status(500).send("error in fetch data "+ error);
+    })
+
+}
+
+
+
+
+
+
+//  location constructor
+function cityLocation(searchQuery, displayName, lat, lon) {
+    this.searchQuery = searchQuery;
+    this.formatted_query = displayName;
+    this.latitude = lat;
+    this.longitude = lon;
+}
+
+
+
+// weather constructor 
+function WeatherData(forecast, time) {
+    this.forecast = forecast;
+    this.time = time;
+}
+
+function CityParks(name,desc,url,fee,address) {
+    this.name = name;
+    this.desc = desc;
+    this.url = url;
+    this.fee = fee;
+    this.address = address;
+
+}
+
+
+
+
+// app.listen(PORT, () => {
+//     console.log('the app is listening on port ' + PORT);
+// });
+
+
+
+
+client.connect().then(() => {
+    app.listen(PORT, () => {
+        console.log('the app is listening to port ' + PORT);
+    });
+}).catch(error => {
+    console.log('an error occurred while connecting to database ' + error);
+});
+
+
+
+
+
+
+
+
+
+
+// function handelLocation(req,res){
+//     let searchQuery = req.query.city;
+//     let locationObject = getLocationData(searchQuery); 
+//     res.status(200).send(locationObject); 
+
+
+
+// }
