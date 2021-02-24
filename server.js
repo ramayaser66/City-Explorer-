@@ -24,7 +24,8 @@ const client = new pg.Client({ connectionString: process.env.DATABASE_URL,   ssl
 
 
 
-// routes - endpoints
+// routes --- endpoints
+
 app.get('/location', handelLocation);
 app.get('/weather', handelWeather);
 app.get('/parks', handelparks);
