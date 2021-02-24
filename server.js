@@ -19,8 +19,8 @@ const PARKSkey = process.env.PARKS_API_KEY;
 const movieKey = process.env.MOVIE_API_KEY; 
 const yelpKey = process.env.YELP_API_KEY;
 
-const client = new pg.Client(process.env.DATABASE_URL);
-// const client = new pg.Client({ connectionString: process.env.DATABASE_URL,   ssl: { rejectUnauthorized: false } });
+// const client = new pg.Client(process.env.DATABASE_URL);
+const client = new pg.Client({ connectionString: process.env.DATABASE_URL,   ssl: { rejectUnauthorized: false } });
 
 
 
@@ -271,21 +271,26 @@ function  getMovies(searchQuery, res){
 
 
 function handelYelp(req, res){
-    let searchQuery = req.query.searchQuery; 
-    getYelp(searchQuery, res);
+    try{
+        let searchQuery = req.query.searchQuery; 
+        getYelp(searchQuery, res);
+    }catch(error){
+        res.status(500).send("error in fetching data "+ error);
+    }
+    
 
 }
 var page = 1;
 function getYelp(searchQuery, res){
     const pageNum = 5;
-    const start = ((page-1)* pageNum+1);
+    const start = ((page - 1) * pageNum + 1);
     const query5 = {
         location: searchQuery, 
         limit:pageNum,
-        offset:start,
+        offset:start
       
     };
-
+    page++;
     let url5 = 'https://api.yelp.com/v3/businesses/search'; 
 superagent.get(url5).query(query5).set('Authorization', `Bearer ${yelpKey}`).then(data => {
         try{
