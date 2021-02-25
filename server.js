@@ -18,8 +18,8 @@ const PARKSkey = process.env.PARKS_API_KEY;
 const movieKey = process.env.MOVIE_API_KEY; 
 const yelpKey = process.env.YELP_API_KEY;
 
-// const client = new pg.Client(process.env.DATABASE_URL);
-const client = new pg.Client({ connectionString: process.env.DATABASE_URL,   ssl: { rejectUnauthorized: false } });
+const client = new pg.Client(process.env.DATABASE_URL);
+// const client = new pg.Client({ connectionString: process.env.DATABASE_URL,   ssl: { rejectUnauthorized: false } });
 
 
 // routes - endpoints
@@ -174,14 +174,14 @@ function getWeatherData(searchQuery, lat, lon, res) {
 }
 
  function handelparks(req, res){
-     let searchQuery = req.query.searchQuery; 
+     let searchQuery = req.query.search_query; 
 
     getParks(searchQuery, res); 
 
 }
 
 function handelMovies(req, res){
-    let searchQuery = req.query.searchQuery; 
+    let searchQuery = req.query.search_query; 
     getMovies(searchQuery, res); 
 }
 
@@ -236,7 +236,7 @@ function  getMovies(searchQuery, res){
                 let overview = movieData[i].description;
                 let average_votes = movieData[i].vote_average;
                 let total_votes = movieData[i].vote_count;
-                let image_url =movieData[i].poster_path;
+                let image_url ='https://image.tmdb.org/t/p/w500/'+movieData[i].poster_path;
                 let popularity = movieData[i].popularity;
                 let released_on = movieData[i].release_date;
                 let moviesObject = new Movies(title, overview, average_votes, total_votes, image_url, popularity, released_on);
@@ -258,7 +258,8 @@ function  getMovies(searchQuery, res){
 
 function handelYelp(req, res){
     try{
-        let searchQuery = req.query.searchQuery; 
+        let searchQuery = req.query.search_query; 
+    
         getYelp(searchQuery, res);
     }catch(error){
         res.status(500).send("error in fetching data "+ error);
@@ -309,7 +310,7 @@ superagent.get(url5).query(query5).set('Authorization', `Bearer ${yelpKey}`).the
 
 //  location constructor
 function cityLocation(searchQuery, displayName, lat, lon) {
-    this.searchQuery = searchQuery;
+    this.search_query = searchQuery;
     this.formatted_query = displayName;
     this.latitude = lat;
     this.longitude = lon;
