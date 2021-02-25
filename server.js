@@ -18,8 +18,8 @@ const PARKSkey = process.env.PARKS_API_KEY;
 const movieKey = process.env.MOVIE_API_KEY; 
 const yelpKey = process.env.YELP_API_KEY;
 
-const client = new pg.Client(process.env.DATABASE_URL);
-// const client = new pg.Client({ connectionString: process.env.DATABASE_URL,   ssl: { rejectUnauthorized: false } });
+// const client = new pg.Client(process.env.DATABASE_URL);
+const client = new pg.Client({ connectionString: process.env.DATABASE_URL,   ssl: { rejectUnauthorized: false } });
 
 
 // routes - endpoints
