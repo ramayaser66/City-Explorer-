@@ -19,6 +19,8 @@ const movieKey = process.env.MOVIE_API_KEY;
 const yelpKey = process.env.YELP_API_KEY;
 
 // const client = new pg.Client(process.env.DATABASE_URL);
+
+// server link 
 const client = new pg.Client({ connectionString: process.env.DATABASE_URL,   ssl: { rejectUnauthorized: false } });
 
 
